@@ -1,13 +1,46 @@
 import { Game, Player, Buyin, FinalStack, PlayerWithStats, SettlementResult } from './types'
 import { calculateSettlement, validateSettlement } from './settlement'
+import { supabase } from './supabase'
 
-const GAMES_KEY = 'poker-games'
-const PLAYERS_KEY = 'poker-players'
-const BUYINS_KEY = 'poker-buyins'
-const FINAL_STACKS_KEY = 'poker-final-stacks'
+// Mappers
+function mapGame(data: any): Game {
+  return {
+    id: data.id,
+    title: data.title,
+    buyinAmount: data.buyin_amount,
+    currency: data.currency,
+    status: data.status,
+    createdAt: data.created_at,
+    closedAt: data.closed_at
+  }
+}
 
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+function mapPlayer(data: any): Player {
+  return {
+    id: data.id,
+    gameId: data.game_id,
+    displayName: data.display_name,
+    createdAt: data.created_at
+  }
+}
+
+function mapBuyin(data: any): Buyin {
+  return {
+    id: data.id,
+    gameId: data.game_id,
+    playerId: data.player_id,
+    amount: data.amount,
+    type: data.type,
+    createdAt: data.created_at
+  }
+}
+
+function mapFinalStack(data: any): FinalStack {
+  return {
+    gameId: data.game_id,
+    playerId: data.player_id,
+    amount: data.amount
+  }
 }
 
 export async function createGame(params: {
@@ -15,30 +48,40 @@ export async function createGame(params: {
   buyinAmount?: number
   currency?: string
 }): Promise<Game> {
-  const games = await spark.kv.get<Game[]>(GAMES_KEY) || []
-  
-  const newGame: Game = {
-    id: generateId(),
-    title: params.title || `Poker Night ${new Date().toLocaleDateString()}`,
-    buyinAmount: params.buyinAmount || 500,
-    currency: params.currency || 'THB',
-    status: 'active',
-    createdAt: new Date().toISOString()
-  }
-  
-  games.unshift(newGame)
-  await spark.kv.set(GAMES_KEY, games)
-  
-  return newGame
+  const { data, error } = await supabase
+    .from('games')
+    .insert({
+      title: params.title || `Poker Night ${new Date().toLocaleDateString()}`,
+      buyin_amount: params.buyinAmount || 500,
+      currency: params.currency || 'THB',
+      status: 'active'
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return mapGame(data)
 }
 
 export async function listGames(): Promise<Game[]> {
-  return await spark.kv.get<Game[]>(GAMES_KEY) || []
+  const { data, error } = await supabase
+    .from('games')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data.map(mapGame)
 }
 
 export async function getGame(gameId: string): Promise<Game | null> {
-  const games = await spark.kv.get<Game[]>(GAMES_KEY) || []
-  return games.find(g => g.id === gameId) || null
+  const { data, error } = await supabase
+    .from('games')
+    .select('*')
+    .eq('id', gameId)
+    .single()
+
+  if (error) return null
+  return mapGame(data)
 }
 
 export async function addPlayer(gameId: string, displayName: string): Promise<Player> {
@@ -46,25 +89,29 @@ export async function addPlayer(gameId: string, displayName: string): Promise<Pl
   if (!game || game.status === 'closed') {
     throw new Error('Cannot add player to closed game')
   }
-  
-  const players = await spark.kv.get<Player[]>(PLAYERS_KEY) || []
-  
-  const newPlayer: Player = {
-    id: generateId(),
-    gameId,
-    displayName,
-    createdAt: new Date().toISOString()
-  }
-  
-  players.push(newPlayer)
-  await spark.kv.set(PLAYERS_KEY, players)
-  
-  return newPlayer
+
+  const { data, error } = await supabase
+    .from('players')
+    .insert({
+      game_id: gameId,
+      display_name: displayName
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return mapPlayer(data)
 }
 
 export async function getPlayers(gameId: string): Promise<Player[]> {
-  const players = await spark.kv.get<Player[]>(PLAYERS_KEY) || []
-  return players.filter(p => p.gameId === gameId)
+  const { data, error } = await supabase
+    .from('players')
+    .select('*')
+    .eq('game_id', gameId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return data.map(mapPlayer)
 }
 
 export async function addBuyin(
@@ -77,26 +124,30 @@ export async function addBuyin(
     throw new Error('Cannot add buy-in to closed game')
   }
   
-  const buyins = await spark.kv.get<Buyin[]>(BUYINS_KEY) || []
-  
-  const newBuyin: Buyin = {
-    id: generateId(),
-    gameId,
-    playerId,
-    amount: game.buyinAmount,
-    type,
-    createdAt: new Date().toISOString()
-  }
-  
-  buyins.push(newBuyin)
-  await spark.kv.set(BUYINS_KEY, buyins)
-  
-  return newBuyin
+  const { data, error } = await supabase
+    .from('buyins')
+    .insert({
+      game_id: gameId,
+      player_id: playerId,
+      amount: game.buyinAmount,
+      type
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return mapBuyin(data)
 }
 
 export async function getBuyins(gameId: string): Promise<Buyin[]> {
-  const buyins = await spark.kv.get<Buyin[]>(BUYINS_KEY) || []
-  return buyins.filter(b => b.gameId === gameId)
+  const { data, error } = await supabase
+    .from('buyins')
+    .select('*')
+    .eq('game_id', gameId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return data?.map(mapBuyin) || []
 }
 
 export async function setFinalStack(
@@ -109,25 +160,25 @@ export async function setFinalStack(
     throw new Error('Cannot update final stack for closed game')
   }
   
-  const finalStacks = await spark.kv.get<FinalStack[]>(FINAL_STACKS_KEY) || []
-  const existingIndex = finalStacks.findIndex(
-    fs => fs.gameId === gameId && fs.playerId === playerId
-  )
-  
-  const finalStack: FinalStack = { gameId, playerId, amount }
-  
-  if (existingIndex >= 0) {
-    finalStacks[existingIndex] = finalStack
-  } else {
-    finalStacks.push(finalStack)
-  }
-  
-  await spark.kv.set(FINAL_STACKS_KEY, finalStacks)
+  const { error } = await supabase
+    .from('final_stacks')
+    .upsert({
+      game_id: gameId,
+      player_id: playerId,
+      amount
+    }, { onConflict: 'game_id,player_id' })
+
+  if (error) throw error
 }
 
 export async function getFinalStacks(gameId: string): Promise<FinalStack[]> {
-  const finalStacks = await spark.kv.get<FinalStack[]>(FINAL_STACKS_KEY) || []
-  return finalStacks.filter(fs => fs.gameId === gameId)
+  const { data, error } = await supabase
+    .from('final_stacks')
+    .select('*')
+    .eq('game_id', gameId)
+
+  if (error) throw error
+  return data?.map(mapFinalStack) || []
 }
 
 export async function getGameWithStats(gameId: string): Promise<{
@@ -216,14 +267,15 @@ export async function closeGame(gameId: string): Promise<void> {
     throw new Error('Cannot close game: settlement is invalid')
   }
   
-  const games = await spark.kv.get<Game[]>(GAMES_KEY) || []
-  const gameIndex = games.findIndex(g => g.id === gameId)
-  
-  if (gameIndex >= 0) {
-    games[gameIndex].status = 'closed'
-    games[gameIndex].closedAt = new Date().toISOString()
-    await spark.kv.set(GAMES_KEY, games)
-  }
+  const { error } = await supabase
+    .from('games')
+    .update({ 
+      status: 'closed',
+      closed_at: new Date().toISOString()
+    })
+    .eq('id', gameId)
+
+  if (error) throw error
 }
 
 export async function deletePlayer(gameId: string, playerId: string): Promise<void> {
@@ -232,15 +284,9 @@ export async function deletePlayer(gameId: string, playerId: string): Promise<vo
     throw new Error('Cannot delete player from closed game')
   }
   
-  const players = await spark.kv.get<Player[]>(PLAYERS_KEY) || []
-  const buyins = await spark.kv.get<Buyin[]>(BUYINS_KEY) || []
-  const finalStacks = await spark.kv.get<FinalStack[]>(FINAL_STACKS_KEY) || []
-  
-  const updatedPlayers = players.filter(p => p.id !== playerId)
-  const updatedBuyins = buyins.filter(b => b.playerId !== playerId)
-  const updatedFinalStacks = finalStacks.filter(fs => fs.playerId !== playerId)
-  
-  await spark.kv.set(PLAYERS_KEY, updatedPlayers)
-  await spark.kv.set(BUYINS_KEY, updatedBuyins)
-  await spark.kv.set(FINAL_STACKS_KEY, updatedFinalStacks)
+  await supabase.from('final_stacks').delete().eq('player_id', playerId).eq('game_id', gameId)
+  await supabase.from('buyins').delete().eq('player_id', playerId).eq('game_id', gameId)
+  const { error } = await supabase.from('players').delete().eq('id', playerId).eq('game_id', gameId)
+
+  if (error) throw error
 }
