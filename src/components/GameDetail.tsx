@@ -13,6 +13,7 @@ import {
   HStack,
   Icon,
   IconButton,
+  Image,
   Input,
   Portal,
   Spinner,
@@ -27,7 +28,7 @@ import {
 } from '@chakra-ui/react'
 import { ArrowLeft, Plus, Trash, TrendUp, TrendDown, Check, Wallet, Cards, Calculator, PencilSimple, CaretDown } from '@phosphor-icons/react'
 import { Game, PlayerWithStats, SettlementResult, ChipSetWithDenominations } from '@/lib/types'
-import { getGameWithStats, addPlayer, addBuyin, setFinalStack, calculateGameSettlement, closeGame, deletePlayer, updateGame, deleteGame, listChipSets, createChipSet, updateChipSet } from '@/lib/db'
+import { getGameWithStats, addPlayer, addBuyin, setFinalStack, calculateGameSettlement, closeGame, deletePlayer, updateGame, deleteGame, deleteChipSet, listChipSets, createChipSet, updateChipSet } from '@/lib/db'
 import { toaster } from './ui/toaster'
 import { Spade, Heart, Diamond, ClubSimple } from './ui/poker-icons'
 import ChipDistributionDialog from './ChipDistributionDialog'
@@ -64,6 +65,7 @@ export default function GameDetail() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeletePlayerDialogOpen, setIsDeletePlayerDialogOpen] = useState(false)
   const [deletePlayerTarget, setDeletePlayerTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isDeleteChipSetDialogOpen, setIsDeleteChipSetDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isChipCalcOpen, setIsChipCalcOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -356,6 +358,24 @@ export default function GameDetail() {
     }
   }
 
+  const handleDeleteChipSet = async () => {
+    if (!editChipSetId) return
+    try {
+      await deleteChipSet(editChipSetId)
+      const sets = await listChipSets()
+      setChipSets(sets)
+      setEditChipSetId('')
+      setIsDeleteChipSetDialogOpen(false)
+      toaster.create({ title: 'Chip set deleted', type: 'success', duration: 2000 })
+    } catch (error: any) {
+      toaster.create({
+        title: error.message || 'Failed to delete chip set',
+        type: 'error',
+        duration: 3000,
+      })
+    }
+  }
+
   const openDeletePlayerDialog = (playerId: string, playerName: string) => {
     setDeletePlayerTarget({ id: playerId, name: playerName })
     setIsDeletePlayerDialogOpen(true)
@@ -437,7 +457,7 @@ export default function GameDetail() {
             <Box flex="1">
               <Flex align="center" justify="space-between">
                 <Flex direction="column" gap="2">
-                  <Flex align="center" gap="3">
+                  <Flex align="center" gap="4">
                     <Heading size="xl" color="white">{game.title}</Heading>
                     <IconButton
                       size="sm"
@@ -1254,6 +1274,77 @@ export default function GameDetail() {
         </Portal>
       </Dialog.Root>
 
+      {/* Delete Chip Set Dialog */}
+      <Dialog.Root open={isDeleteChipSetDialogOpen} onOpenChange={(e) => setIsDeleteChipSetDialogOpen(e.open)}>
+        <Portal>
+          <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
+          <Dialog.Positioner>
+            <Dialog.Content
+              bg="#1a1a2e"
+              borderWidth="1px"
+              borderColor="whiteAlpha.100"
+              borderRadius="2xl"
+              shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
+              maxW="md"
+              mx="4"
+            >
+              <Dialog.Header pt="6" pb="2" px={{ base: "4", md: "6" }}>
+                <Dialog.Title color="white" fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
+                  Delete Chip Set?
+                </Dialog.Title>
+                <Dialog.Description color="whiteAlpha.500" fontSize="sm" mt="1">
+                  This will permanently delete the chip set and its denominations.
+                </Dialog.Description>
+              </Dialog.Header>
+              <Dialog.Body px={{ base: "4", md: "6" }} pb="4">
+                <Box borderRadius="xl" bg="rgba(239, 68, 68, 0.1)" borderWidth="1px" borderColor="red.500/30" p="3">
+                  <Text color="red.300" fontSize="sm">
+                    This action cannot be undone.
+                  </Text>
+                </Box>
+              </Dialog.Body>
+              <Dialog.Footer pb="6" px={{ base: "4", md: "6" }}>
+                <Flex gap="3" w="full">
+                  <Button
+                    flex="1"
+                    h="12"
+                    variant="outline"
+                    colorPalette="gray"
+                    borderColor="whiteAlpha.200"
+                    color="whiteAlpha.700"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
+                    onClick={() => setIsDeleteChipSetDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    flex="1"
+                    h="12"
+                    bg="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    color="white"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    onClick={handleDeleteChipSet}
+                    _hover={{
+                      bg: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 8px 20px rgba(239, 68, 68, 0.3)'
+                    }}
+                    transition="all 0.2s"
+                  >
+                    Delete Chip Set
+                  </Button>
+                </Flex>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
       {/* Edit Session Dialog */}
       <Dialog.Root open={isEditDialogOpen} onOpenChange={(e) => setIsEditDialogOpen(e.open)}>
         <Portal>
@@ -1549,23 +1640,35 @@ export default function GameDetail() {
                               <Text fontSize="sm" fontWeight="semibold" color="purple.300">
                                 {set.name}
                               </Text>
-                              <Button
-                                size="xs"
-                                variant="ghost"
-                                colorPalette="purple"
-                                onClick={() => {
-                                  setIsEditingSet(true)
-                                  setNewChipSetName(set.name)
-                                  setDenominations(set.denominations.length > 0 
-                                    ? set.denominations.map(d => ({ value: d.value, quantity: d.quantity }))
-                                    : DEFAULT_DENOMS
-                                  )
-                                }}
-                                px="2"
-                                h="6"
-                              >
-                                Edit
-                              </Button>
+                              <Flex gap="2">
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  colorPalette="purple"
+                                  onClick={() => {
+                                    setIsEditingSet(true)
+                                    setNewChipSetName(set.name)
+                                    setDenominations(set.denominations.length > 0 
+                                      ? set.denominations.map(d => ({ value: d.value, quantity: d.quantity }))
+                                      : DEFAULT_DENOMS
+                                    )
+                                  }}
+                                  px="2"
+                                  h="6"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  colorPalette="red"
+                                  onClick={() => setIsDeleteChipSetDialogOpen(true)}
+                                  px="2"
+                                  h="6"
+                                >
+                                  Delete
+                                </Button>
+                              </Flex>
                             </Flex>
                             <Grid gridTemplateColumns="repeat(3, 1fr)" gap="2">
                               {set.denominations.map((denom) => (

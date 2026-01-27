@@ -18,7 +18,7 @@ import {
 } from '@chakra-ui/react'
 import { CaretDown } from '@phosphor-icons/react'
 import { PokerChip, Plus } from '@phosphor-icons/react'
-import { createGame, listChipSets, createChipSet, updateChipSet } from '@/lib/db'
+import { createGame, listChipSets, createChipSet, updateChipSet, deleteChipSet } from '@/lib/db'
 import { ChipSetWithDenominations } from '@/lib/types'
 import { toaster } from './ui/toaster'
 
@@ -59,6 +59,7 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
   const [isEditingSet, setIsEditingSet] = useState(false)
   const [newChipSetName, setNewChipSetName] = useState('')
   const [denominations, setDenominations] = useState(DEFAULT_DENOMS)
+  const [isDeleteChipSetOpen, setIsDeleteChipSetOpen] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -132,6 +133,20 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
     }
   }
 
+  const handleDeleteChipSet = async () => {
+    if (!selectedChipSetId) return
+    try {
+      await deleteChipSet(selectedChipSetId)
+      await loadChipSets()
+      setSelectedChipSetId('')
+      setIsDeleteChipSetOpen(false)
+      toaster.create({ title: 'Chip set deleted', type: 'success', duration: 2000 })
+    } catch (error) {
+      console.error('Failed to delete chip set:', error)
+      toaster.create({ title: 'Failed to delete chip set', type: 'error', duration: 3000 })
+    }
+  }
+
   const handleCreateGame = async () => {
     if (!buyinAmount) return
     setIsCreating(true)
@@ -174,20 +189,21 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
   }
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(e) => !e.open && onClose()} placement="center">
-      <Portal>
-        <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
-        <Dialog.Positioner>
-          <Dialog.Content 
-            bg="#1a1a2e" 
-            borderWidth="1px" 
-            borderColor="whiteAlpha.100"
-            borderRadius={{ base: "xl", md: "2xl" }}
-            shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
-            maxW="md"
-            mx="4"
-            my="auto"
-          >
+    <>
+      <Dialog.Root open={isOpen} onOpenChange={(e) => !e.open && onClose()} placement="center">
+        <Portal>
+          <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
+          <Dialog.Positioner>
+            <Dialog.Content 
+              bg="#1a1a2e" 
+              borderWidth="1px" 
+              borderColor="whiteAlpha.100"
+              borderRadius={{ base: "xl", md: "2xl" }}
+              shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
+              maxW="md"
+              mx="4"
+              my="auto"
+            >
             <Box
               position="absolute"
               top="0"
@@ -510,23 +526,35 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
                           <Text fontSize="sm" fontWeight="semibold" color="purple.300">
                             {selectedChipSet.name}
                           </Text>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            colorPalette="purple"
-                            onClick={() => {
-                              setIsEditingSet(true)
-                              setNewChipSetName(selectedChipSet.name)
-                              setDenominations(selectedChipSet.denominations.length > 0 
-                                ? selectedChipSet.denominations.map(d => ({ value: d.value, quantity: d.quantity }))
-                                : DEFAULT_DENOMS
-                              )
-                            }}
-                            px="2"
-                            h="6"
-                          >
-                            Edit
-                          </Button>
+                          <Flex gap="2">
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              colorPalette="purple"
+                              onClick={() => {
+                                setIsEditingSet(true)
+                                setNewChipSetName(selectedChipSet.name)
+                                setDenominations(selectedChipSet.denominations.length > 0 
+                                  ? selectedChipSet.denominations.map(d => ({ value: d.value, quantity: d.quantity }))
+                                  : DEFAULT_DENOMS
+                                )
+                              }}
+                              px="2"
+                              h="6"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              colorPalette="red"
+                              onClick={() => setIsDeleteChipSetOpen(true)}
+                              px="2"
+                              h="6"
+                            >
+                              Delete
+                            </Button>
+                          </Flex>
                         </Flex>
                         <Grid gridTemplateColumns="repeat(3, 1fr)" gap="2">
                           {selectedChipSet.denominations.map((denom) => (
@@ -765,9 +793,81 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
                 </Button>
               </Flex>
             </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      {/* Delete Chip Set Dialog */}
+      <Dialog.Root open={isDeleteChipSetOpen} onOpenChange={(e) => setIsDeleteChipSetOpen(e.open)}>
+        <Portal>
+          <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
+          <Dialog.Positioner>
+            <Dialog.Content
+              bg="#1a1a2e"
+              borderWidth="1px"
+              borderColor="whiteAlpha.100"
+              borderRadius="2xl"
+              shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
+              maxW="md"
+              mx="4"
+            >
+              <Dialog.Header pt="6" pb="2" px={{ base: "4", md: "6" }}>
+                <Dialog.Title color="white" fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
+                  Delete Chip Set?
+                </Dialog.Title>
+                <Dialog.Description color="whiteAlpha.500" fontSize="sm" mt="1">
+                  This will permanently delete the chip set and its denominations.
+                </Dialog.Description>
+              </Dialog.Header>
+              <Dialog.Body px={{ base: "4", md: "6" }} pb="4">
+                <Box borderRadius="xl" bg="rgba(239, 68, 68, 0.1)" borderWidth="1px" borderColor="red.500/30" p="3">
+                  <Text color="red.300" fontSize="sm">
+                    This action cannot be undone.
+                  </Text>
+                </Box>
+              </Dialog.Body>
+              <Dialog.Footer pb="6" px={{ base: "4", md: "6" }}>
+                <Flex gap="3" w="full">
+                  <Button
+                    flex="1"
+                    h="12"
+                    variant="outline"
+                    colorPalette="gray"
+                    borderColor="whiteAlpha.200"
+                    color="whiteAlpha.700"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
+                    onClick={() => setIsDeleteChipSetOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    flex="1"
+                    h="12"
+                    bg="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    color="white"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    onClick={handleDeleteChipSet}
+                    _hover={{
+                      bg: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 8px 20px rgba(239, 68, 68, 0.3)'
+                    }}
+                    transition="all 0.2s"
+                  >
+                    Delete Chip Set
+                  </Button>
+                </Flex>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+    </>
   )
 }

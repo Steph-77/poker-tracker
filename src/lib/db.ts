@@ -138,6 +138,15 @@ export async function deleteGame(gameId: string): Promise<void> {
   if (error) throw error
 }
 
+export async function deleteChipSet(chipSetId: string): Promise<void> {
+  const { error } = await supabase
+    .from('chip_sets')
+    .delete()
+    .eq('id', chipSetId)
+
+  if (error) throw error
+}
+
 export async function listGames(): Promise<Game[]> {
   const { data, error } = await supabase
     .from('games')

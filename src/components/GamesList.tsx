@@ -9,6 +9,7 @@ import {
   Grid,
   Heading,
   Icon,
+  Image,
   Spinner,
   Text,
   VStack,
@@ -66,14 +67,23 @@ export default function GamesList() {
           >
             <Box>
               <Flex align="center" gap="3" mb="2">
-                <Box 
-                  bg="linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)" 
-                  p="3" 
-                  borderRadius="xl"
-                  shadow="0 0 30px rgba(168, 85, 247, 0.4)"
+                <Box
+                  p="2"
+                  borderRadius="3xl"
                   position="relative"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  w="40"
+                  h="40"
                 >
-                  <Cards size={28} weight="fill" color="white" />
+                  <Image
+                    src="/logo.png"
+                    alt="PokerSettle logo"
+                    w="36"
+                    h="36"
+                    objectFit="contain"
+                  />
                 </Box>
                 <Box>
                   <Heading 
@@ -82,7 +92,7 @@ export default function GamesList() {
                     fontWeight="bold"
                     color="white"
                   >
-                    PokerSettle
+                    SplitChips
                   </Heading>
                   <Flex align="center" gap="2" mt="1">
                     <Spade size={12} color="#a855f7" />
