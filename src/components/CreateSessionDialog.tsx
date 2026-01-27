@@ -20,14 +20,15 @@ import {
 import DatePicker from 'react-datepicker'
 import { CaretDown } from '@phosphor-icons/react'
 import { PokerChip, Plus } from '@phosphor-icons/react'
-import { createGame, listChipSets, createChipSet, updateChipSet, deleteChipSet } from '@/lib/db'
-import { ChipSetWithDenominations } from '@/lib/types'
+import { createGame, updateGame, listChipSets, createChipSet, updateChipSet, deleteChipSet } from '@/lib/db'
+import { ChipSetWithDenominations, Game } from '@/lib/types'
 import { toaster } from './ui/toaster'
 
 interface CreateSessionDialogProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: (gameId: string) => void
+  editGame?: Game | null
 }
 
 const DEFAULT_DENOMS = [
@@ -87,7 +88,8 @@ const DateTimeInput = forwardRef<HTMLInputElement, InputProps & { value?: string
 )
 DateTimeInput.displayName = 'DateTimeInput'
 
-export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: CreateSessionDialogProps) {
+export default function CreateSessionDialog({ isOpen, onClose, onSuccess, editGame }: CreateSessionDialogProps) {
+  const isEditMode = !!editGame
   const [title, setTitle] = useState('')
   const [sessionDate, setSessionDate] = useState<Date | null>(null)
   const [sessionTime, setSessionTime] = useState<Date | null>(null)
@@ -108,14 +110,33 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
 
   useEffect(() => {
     if (isOpen) {
-      const now = new Date()
-      setSessionDate(now)
-      const defaultTime = new Date()
-      defaultTime.setHours(19, 0, 0, 0) // 7:00 PM
-      setSessionTime(defaultTime)
+      if (editGame) {
+        // Populate with existing game data
+        setTitle(editGame.title)
+        const gameDate = new Date(editGame.createdAt)
+        setSessionDate(gameDate)
+        setSessionTime(gameDate)
+        setBuyinAmount(editGame.buyinAmount.toString())
+        setChipsPerBuyin(editGame.chipsPerBuyin.toString())
+        setExpectedPlayers(editGame.expectedPlayers.toString())
+        const matchingBlind = BLIND_OPTIONS.find(opt => 
+          opt.small === editGame.smallBlind && opt.big === editGame.bigBlind
+        )
+        if (matchingBlind) {
+          setBlindOption(matchingBlind)
+        }
+        setSelectedChipSetId(editGame.chipSetId || '')
+      } else {
+        // Reset for new game
+        const now = new Date()
+        setSessionDate(now)
+        const defaultTime = new Date()
+        defaultTime.setHours(19, 0, 0, 0) // 7:00 PM
+        setSessionTime(defaultTime)
+      }
       loadChipSets()
     }
-  }, [isOpen])
+  }, [isOpen, editGame])
 
   const loadChipSets = async () => {
     try {
@@ -197,7 +218,7 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
     }
   }
 
-  const handleCreateGame = async () => {
+  const handleSubmit = async () => {
     if (!buyinAmount) return
     setIsCreating(true)
     try {
@@ -206,38 +227,61 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
         createdAtDate.setHours(sessionTime.getHours(), sessionTime.getMinutes(), 0, 0)
       }
       const createdAt = createdAtDate ? createdAtDate.toISOString() : undefined
-      const game = await createGame({
-        title: title || undefined,
-        buyinAmount: parseInt(buyinAmount) || 500,
-        chipsPerBuyin: parseInt(chipsPerBuyin) || 1000,
-        expectedPlayers: parseInt(expectedPlayers) || 6,
-        smallBlind: blindOption.small,
-        bigBlind: blindOption.big,
-        currency: 'THB',
-        chipSetId: selectedChipSetId || undefined,
-        createdAt
-      })
-      toaster.create({
-        title: 'Game created!',
-        type: 'success',
-        duration: 2000,
-      })
-      onClose()
-      onSuccess(game.id)
-      // Reset form
-      setTitle('')
-      setSessionDate(null)
-      setSessionTime(null)
-      setBuyinAmount('500')
-      setChipsPerBuyin('1000')
-      setExpectedPlayers('6')
-      setBlindOption(BLIND_OPTIONS[0])
-      setSelectedChipSetId('')
-      setIsCreatingNewSet(false)
+      
+      if (isEditMode && editGame) {
+        // Update existing game
+        await updateGame(editGame.id, {
+          title: title || undefined,
+          buyinAmount: parseInt(buyinAmount) || 500,
+          chipsPerBuyin: parseInt(chipsPerBuyin) || 1000,
+          expectedPlayers: parseInt(expectedPlayers) || 6,
+          smallBlind: blindOption.small,
+          bigBlind: blindOption.big,
+          chipSetId: selectedChipSetId || undefined,
+          createdAt
+        })
+        toaster.create({
+          title: 'Session updated!',
+          type: 'success',
+          duration: 2000,
+        })
+        onClose()
+        onSuccess(editGame.id)
+      } else {
+        // Create new game
+        const game = await createGame({
+          title: title || undefined,
+          buyinAmount: parseInt(buyinAmount) || 500,
+          chipsPerBuyin: parseInt(chipsPerBuyin) || 1000,
+          expectedPlayers: parseInt(expectedPlayers) || 6,
+          smallBlind: blindOption.small,
+          bigBlind: blindOption.big,
+          currency: 'THB',
+          chipSetId: selectedChipSetId || undefined,
+          createdAt
+        })
+        toaster.create({
+          title: 'Game created!',
+          type: 'success',
+          duration: 2000,
+        })
+        onClose()
+        onSuccess(game.id)
+        // Reset form
+        setTitle('')
+        setSessionDate(null)
+        setSessionTime(null)
+        setBuyinAmount('500')
+        setChipsPerBuyin('1000')
+        setExpectedPlayers('6')
+        setBlindOption(BLIND_OPTIONS[0])
+        setSelectedChipSetId('')
+        setIsCreatingNewSet(false)
+      }
     } catch (error) {
-      console.error('Failed to create game:', error)
+      console.error('Failed to save game:', error)
       toaster.create({
-        title: 'Failed to create game',
+        title: `Failed to ${isEditMode ? 'update' : 'create'} game`,
         type: 'error',
         duration: 3000,
       })
@@ -273,10 +317,10 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
             
             <Dialog.Header pt="6" pb="2" px={{ base: "4", md: "6" }}>
               <Dialog.Title color="white" fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
-                New Session
+                {isEditMode ? 'Edit Session' : 'New Session'}
               </Dialog.Title>
               <Dialog.Description color="whiteAlpha.500" fontSize="sm" mt="1">
-                Set up your poker night in seconds.
+                {isEditMode ? 'Update your session settings.' : 'Set up your poker night in seconds.'}
               </Dialog.Description>
             </Dialog.Header>
 
@@ -870,7 +914,7 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
                   fontSize="md"
                   fontWeight="semibold"
                   borderRadius="xl"
-                  onClick={handleCreateGame}
+                  onClick={handleSubmit}
                   loading={isCreating}
                   shadow="0 4px 20px rgba(168, 85, 247, 0.4)"
                   _hover={{ 
@@ -879,7 +923,7 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
                   }}
                   transition="all 0.2s"
                 >
-                  {isCreating ? 'Setting up...' : 'Start Session'}
+                  {isCreating ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create')}
                 </Button>
               </Flex>
             </Dialog.Footer>

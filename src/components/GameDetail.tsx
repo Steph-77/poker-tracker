@@ -28,6 +28,7 @@ import {
   MenuItem,
 } from '@chakra-ui/react'
 import DatePicker from 'react-datepicker'
+import CreateSessionDialog from './CreateSessionDialog'
 import { ArrowLeft, Plus, Trash, TrendUp, TrendDown, Check, Wallet, Cards, Calculator, PencilSimple, CaretDown, UsersFour, Coin } from '@phosphor-icons/react'
 import { Game, PlayerWithStats, SettlementResult, ChipSetWithDenominations } from '@/lib/types'
 import { getGameWithStats, addPlayer, addBuyin, setFinalStack, calculateGameSettlement, closeGame, deletePlayer, updateGame, deleteGame, deleteChipSet, listChipSets, createChipSet, updateChipSet } from '@/lib/db'
@@ -1382,30 +1383,37 @@ export default function GameDetail() {
       {/* Edit Session Dialog */}
       <Dialog.Root open={isEditDialogOpen} onOpenChange={(e) => setIsEditDialogOpen(e.open)}>
         <Portal>
-          <Dialog.Backdrop bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
+          <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
           <Dialog.Positioner>
             <Dialog.Content
-              bg="linear-gradient(135deg, #1a1a2e 0%, #16172b 100%)"
-              borderColor="whiteAlpha.200"
+              bg="#1a1a2e"
               borderWidth="1px"
-              borderRadius="2xl"
-              boxShadow="2xl"
+              borderColor="whiteAlpha.100"
+              borderRadius={{ base: "xl", md: "2xl" }}
+              shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
               maxW="md"
               w="full"
               mx="4"
+              maxH="90vh"
+              display="flex"
+              flexDirection="column"
             >
-              <Dialog.Header pb="4" px={{ base: "4", md: "6" }} pt="6">
-                <Dialog.Title
-                  fontSize="2xl"
-                  fontWeight="bold"
-                  color="white"
-                  letterSpacing="tight"
-                >
+              <Box
+                position="absolute"
+                top="0"
+                left="0"
+                right="0"
+                h="1px"
+                bg="linear-gradient(90deg, transparent, #a855f7, #06b6d4, transparent)"
+              />
+              
+              <Dialog.Header pt="6" pb="2" px={{ base: "4", md: "6" }}>
+                <Dialog.Title color="white" fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
                   Edit Session
                 </Dialog.Title>
               </Dialog.Header>
 
-              <Dialog.Body px={{ base: "4", md: "6" }} pb="4">
+              <Dialog.Body px={{ base: "4", md: "6" }} pb="4" overflowY="auto" flex="1">
                 <Stack gap="4">
                   <Field.Root>
                     <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">
@@ -1931,25 +1939,9 @@ export default function GameDetail() {
               </Dialog.Body>
 
               <Dialog.Footer pb="6" px={{ base: "4", md: "6" }}>
-                <Flex gap="3" w="full">
-                  <Dialog.CloseTrigger asChild>
-                    <Button
-                      flex="1"
-                      h="12"
-                      variant="outline"
-                      colorPalette="gray"
-                      borderColor="whiteAlpha.200"
-                      color="whiteAlpha.700"
-                      fontSize="md"
-                      fontWeight="semibold"
-                      borderRadius="xl"
-                      _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
-                    >
-                      Cancel
-                    </Button>
-                  </Dialog.CloseTrigger>
+                <Flex gap="3" w="full" direction="column">
                   <Button
-                    flex="1"
+                    w="full"
                     h="12"
                     bg="linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)"
                     color="white"
@@ -1957,21 +1949,45 @@ export default function GameDetail() {
                     fontWeight="semibold"
                     borderRadius="xl"
                     onClick={handleUpdateGame}
+                    shadow="0 4px 20px rgba(168, 85, 247, 0.4)"
                     _hover={{
                       bg: 'linear-gradient(135deg, #9333ea 0%, #6d28d9 100%)',
                       transform: 'translateY(-1px)',
-                      boxShadow: '0 8px 20px rgba(168, 85, 247, 0.3)'
+                      shadow: '0 6px 30px rgba(168, 85, 247, 0.5)'
                     }}
                     transition="all 0.2s"
                   >
                     Save Changes
                   </Button>
+                  <Dialog.CloseTrigger asChild>
+                    <Button
+                      w="full"
+                      h="12"
+                      variant="ghost"
+                      colorPalette="gray"
+                      color="whiteAlpha.600"
+                      fontSize="md"
+                      fontWeight="medium"
+                      borderRadius="xl"
+                      _hover={{ bg: 'whiteAlpha.100', color: 'white' }}
+                    >
+                      Cancel
+                    </Button>
+                  </Dialog.CloseTrigger>
                 </Flex>
               </Dialog.Footer>
             </Dialog.Content>
           </Dialog.Positioner>
         </Portal>
       </Dialog.Root>
+
+      {/* Edit Session Dialog */}
+      <CreateSessionDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        onSuccess={() => loadGame()}
+        editGame={game}
+      />
     </Box>
   )
 }
