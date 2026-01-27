@@ -1985,7 +1985,7 @@ export default function GameDetail() {
       <CreateSessionDialog
         isOpen={isEditDialogOpen}
         onClose={() => setIsEditDialogOpen(false)}
-        onSuccess={() => loadGame()}
+        onSuccess={() => loadGameData()}
         editGame={game}
       />
     </Box>

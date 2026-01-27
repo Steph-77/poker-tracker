@@ -230,7 +230,8 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess, editGa
       
       if (isEditMode && editGame) {
         // Update existing game
-        await updateGame(editGame.id, {
+        await updateGame({
+          gameId: editGame.id,
           title: title || undefined,
           buyinAmount: parseInt(buyinAmount) || 500,
           chipsPerBuyin: parseInt(chipsPerBuyin) || 1000,
