@@ -53,7 +53,7 @@ export default function GamesList() {
   }
 
   return (
-    <Box minH="100vh" py="10" px={{ base: "4", md: "8" }} position="relative">
+    <Box minH="100vh" py="0" px={{ base: "4", md: "8" }} position="relative">
       <Container maxW="container.xl" mx="auto" position="relative" zIndex="1">
         <VStack gap="10" align="stretch">
           
