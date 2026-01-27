@@ -19,6 +19,7 @@ interface ChipDistributionDialogProps {
   onClose: () => void
   chipsPerBuyin: number
   expectedPlayers: number
+  actualPlayers: number
   chipSet?: ChipSetWithDenominations | null
 }
 export default function ChipDistributionDialog({ 
@@ -26,6 +27,7 @@ export default function ChipDistributionDialog({
   onClose, 
   chipsPerBuyin, 
   expectedPlayers,
+  actualPlayers,
   chipSet 
 }: ChipDistributionDialogProps) {
   const distribution = useMemo(() => {
@@ -244,29 +246,36 @@ export default function ChipDistributionDialog({
                     </Box>
                   )}
 
-                  {distribution && distribution.remainingChips.length > 0 && (
+                  {distribution && chipSet && distribution.remainingChips.length > 0 && (
                     <Box>
                       <Text color="whiteAlpha.500" fontSize="sm" fontWeight="medium" mb="2">
-                        Remaining chips in set:
+                        Remaining in set:
                       </Text>
                       <Flex gap="2" flexWrap="wrap">
-                        {distribution.remainingChips.map((item) => (
-                          <Box
-                            key={item.value}
-                            bg="rgba(255, 255, 255, 0.03)"
-                            borderWidth="1px"
-                            borderColor="whiteAlpha.100"
-                            borderRadius="lg"
-                            px="3"
-                            py="1.5"
-                          >
-                            <Text color="whiteAlpha.600" fontSize="sm" fontFamily="mono">
-                              <Text as="span" color="cyan.400" fontWeight="bold">{item.value}</Text>
-                              <Text as="span" color="whiteAlpha.400"> × </Text>
-                              {item.quantity}
-                            </Text>
-                          </Box>
-                        ))}
+                        {distribution.remainingChips.map((item) => {
+                          const original = chipSet.denominations.find(d => d.value === item.value)?.quantity || 0
+                          const usedPerPlayer = distribution.perPlayer.find(p => p.value === item.value)?.quantity || 0
+                          const totalUsed = usedPerPlayer * actualPlayers
+                          const remaining = original - totalUsed
+                          
+                          return (
+                            <Box
+                              key={item.value}
+                              bg={remaining === 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(255, 255, 255, 0.03)"}
+                              borderWidth="1px"
+                              borderColor={remaining === 0 ? "red.500/30" : "whiteAlpha.100"}
+                              borderRadius="lg"
+                              px="3"
+                              py="1.5"
+                            >
+                              <Text color={remaining === 0 ? "red.400" : "whiteAlpha.600"} fontSize="sm" fontFamily="mono">
+                                <Text as="span" color={remaining === 0 ? "red.400" : "cyan.400"} fontWeight="bold">{item.value}</Text>
+                                <Text as="span" color="whiteAlpha.400"> × </Text>
+                                {remaining}
+                              </Text>
+                            </Box>
+                          )
+                        })}
                       </Flex>
                     </Box>
                   )}

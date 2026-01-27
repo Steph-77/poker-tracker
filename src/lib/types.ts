@@ -11,6 +11,7 @@ export interface Game {
   expectedPlayers?: number
   smallBlind?: number
   bigBlind?: number
+  playerCount?: number
 }
 
 export interface ChipSet {

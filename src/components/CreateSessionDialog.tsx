@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { forwardRef, useState, useEffect } from 'react'
 import {
   Box,
   Button,
@@ -8,6 +8,7 @@ import {
   Grid,
   Heading,
   Input,
+  type InputProps,
   Portal,
   Stack,
   Text,
@@ -16,6 +17,7 @@ import {
   MenuContent,
   MenuItem,
 } from '@chakra-ui/react'
+import DatePicker from 'react-datepicker'
 import { CaretDown } from '@phosphor-icons/react'
 import { PokerChip, Plus } from '@phosphor-icons/react'
 import { createGame, listChipSets, createChipSet, updateChipSet, deleteChipSet } from '@/lib/db'
@@ -44,8 +46,51 @@ const BLIND_OPTIONS = [
   { label: '50 / 100', small: 50, big: 100 },
 ]
 
+const roundToHalfHour = (date: Date) => {
+  const rounded = new Date(date)
+  const minutes = rounded.getMinutes()
+  const roundedMinutes = Math.round(minutes / 30) * 30
+  rounded.setMinutes(roundedMinutes, 0, 0)
+  if (roundedMinutes === 60) {
+    rounded.setHours(rounded.getHours() + 1)
+    rounded.setMinutes(0, 0, 0)
+  }
+  return rounded
+}
+
+const DateTimeInput = forwardRef<HTMLInputElement, InputProps & { value?: string; onClick?: () => void }>(
+  ({ value, onClick, placeholder, ...props }, ref) => (
+    <Input
+      ref={ref}
+      value={value}
+      onClick={onClick}
+      placeholder={placeholder}
+      readOnly
+      bg="rgba(255, 255, 255, 0.03)"
+      borderColor="whiteAlpha.100"
+      borderRadius="xl"
+      color="white"
+      h="12"
+      px="4"
+      fontSize="md"
+      cursor="pointer"
+      _placeholder={{ color: 'whiteAlpha.300' }}
+      _hover={{ borderColor: 'whiteAlpha.200' }}
+      _focus={{ 
+        borderColor: 'purple.500', 
+        boxShadow: '0 0 0 1px var(--chakra-colors-purple-500)',
+        bg: 'rgba(255, 255, 255, 0.05)'
+      }}
+      {...props}
+    />
+  )
+)
+DateTimeInput.displayName = 'DateTimeInput'
+
 export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: CreateSessionDialogProps) {
   const [title, setTitle] = useState('')
+  const [sessionDate, setSessionDate] = useState<Date | null>(null)
+  const [sessionTime, setSessionTime] = useState<Date | null>(null)
   const [buyinAmount, setBuyinAmount] = useState('500')
   const [chipsPerBuyin, setChipsPerBuyin] = useState('1000')
   const [expectedPlayers, setExpectedPlayers] = useState('6')
@@ -63,6 +108,11 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
 
   useEffect(() => {
     if (isOpen) {
+      const now = new Date()
+      setSessionDate(now)
+      const defaultTime = new Date()
+      defaultTime.setHours(19, 0, 0, 0) // 7:00 PM
+      setSessionTime(defaultTime)
       loadChipSets()
     }
   }, [isOpen])
@@ -151,6 +201,11 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
     if (!buyinAmount) return
     setIsCreating(true)
     try {
+      const createdAtDate = sessionDate ? new Date(sessionDate) : null
+      if (createdAtDate && sessionTime) {
+        createdAtDate.setHours(sessionTime.getHours(), sessionTime.getMinutes(), 0, 0)
+      }
+      const createdAt = createdAtDate ? createdAtDate.toISOString() : undefined
       const game = await createGame({
         title: title || undefined,
         buyinAmount: parseInt(buyinAmount) || 500,
@@ -159,7 +214,8 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
         smallBlind: blindOption.small,
         bigBlind: blindOption.big,
         currency: 'THB',
-        chipSetId: selectedChipSetId || undefined
+        chipSetId: selectedChipSetId || undefined,
+        createdAt
       })
       toaster.create({
         title: 'Game created!',
@@ -170,6 +226,8 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
       onSuccess(game.id)
       // Reset form
       setTitle('')
+      setSessionDate(null)
+      setSessionTime(null)
       setBuyinAmount('500')
       setChipsPerBuyin('1000')
       setExpectedPlayers('6')
@@ -248,6 +306,38 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess }: Crea
                     }}
                   />
                 </Field.Root>
+
+                <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap="4">
+                  <Field.Root>
+                    <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">
+                      Session Date
+                    </Field.Label>
+                    <DatePicker
+                      selected={sessionDate}
+                      onChange={(date) => setSessionDate(date as Date | null)}
+                    customInput={<DateTimeInput placeholder="Select date" />}
+                    dateFormat="MMM d, yyyy"
+                    popperPlacement="bottom-start"
+                    />
+                  </Field.Root>
+
+                  <Field.Root>
+                    <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">
+                      Session Time
+                    </Field.Label>
+                    <DatePicker
+                      selected={sessionTime}
+                      onChange={(date) => setSessionTime(date as Date | null)}
+                    customInput={<DateTimeInput placeholder="Select time" />}
+                    showTimeSelect
+                    showTimeSelectOnly
+                    timeIntervals={30}
+                    timeCaption="Time"
+                    dateFormat="h:mm aa"
+                    popperPlacement="bottom-start"
+                    />
+                  </Field.Root>
+                </Grid>
 
                 <Field.Root>
                   <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">

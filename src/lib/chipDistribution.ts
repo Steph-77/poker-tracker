@@ -156,7 +156,7 @@ export function calculateChipDistribution(input: ChipDistributionInput): ChipDis
       value: d.value,
       quantity: d.quantity - (used * expectedPlayers)
     }
-  }).filter(r => r.quantity > 0)
+  })
 
   let warning: string | undefined
   if (totalValuePerPlayer < chipsPerBuyin) {

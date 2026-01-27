@@ -5,18 +5,20 @@ import {
   Button,
   Card,
   Container,
+  Dialog,
   Flex,
   Grid,
   Heading,
   Icon,
   Image,
+  Portal,
   Spinner,
   Text,
   VStack,
 } from '@chakra-ui/react'
-import { Plus, ArrowRight, PokerChip, CalendarBlank, Wallet, Cards } from '@phosphor-icons/react'
+import { Plus, ArrowRight, PokerChip, CalendarBlank, Wallet, Cards, Trash, UsersFour, Coin } from '@phosphor-icons/react'
 import { Game } from '@/lib/types'
-import { listGames } from '@/lib/db'
+import { listGames, deleteGame } from '@/lib/db'
 import { toaster } from './ui/toaster'
 import { Spade, Heart, Diamond, ClubSimple } from './ui/poker-icons'
 import CreateSessionDialog from './CreateSessionDialog'
@@ -27,6 +29,9 @@ export default function GamesList() {
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     loadGames()
@@ -50,6 +55,28 @@ export default function GamesList() {
 
   const handleSessionCreated = (gameId: string) => {
     navigate(`/game/${gameId}`)
+  }
+
+  const openDeleteDialog = (game: Game) => {
+    setDeleteTarget(game)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteSession = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      await deleteGame(deleteTarget.id)
+      await loadGames()
+      setIsDeleteDialogOpen(false)
+      setDeleteTarget(null)
+      toaster.create({ title: 'Session deleted', type: 'success', duration: 2000 })
+    } catch (error) {
+      console.error('Failed to delete session', error)
+      toaster.create({ title: 'Failed to delete session', type: 'error', duration: 3000 })
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -230,7 +257,7 @@ export default function GamesList() {
                   {/* Card suit watermark */}
                   <Box 
                     position="absolute" 
-                    top="4" 
+                    bottom="4" 
                     right="4" 
                     opacity="0.05"
                     _groupHover={{ opacity: 0.1 }}
@@ -287,14 +314,29 @@ export default function GamesList() {
                         </Text>
                       </Flex>
                       
-                      <Flex align="center" gap="1.5" color="whiteAlpha.400" fontSize="xs">
-                        <CalendarBlank weight="fill" size={14} />
-                        <Text>
-                          {new Date(game.createdAt).toLocaleDateString(undefined, { 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}
-                        </Text>
+                      <Flex align="center" gap="1.5">
+                        <Flex align="center" gap="1.5" color="whiteAlpha.600" fontSize="xs">
+                          <CalendarBlank weight="fill" size={14} />
+                          <Text>
+                            {new Date(game.createdAt).toLocaleDateString(undefined, { 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </Text>
+                        </Flex>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          colorPalette="red"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openDeleteDialog(game)
+                          }}
+                          px="3"
+                          h="9"
+                        >
+                          <Trash size={18} weight="bold" />
+                        </Button>
                       </Flex>
                     </Flex>
 
@@ -309,7 +351,7 @@ export default function GamesList() {
                       >
                         {game.title}
                       </Heading>
-                      <Text fontSize="sm" color="whiteAlpha.400">
+                      <Text fontSize="sm" color="whiteAlpha.600">
                         {new Date(game.createdAt).toLocaleTimeString([], { 
                           hour: '2-digit', 
                           minute: '2-digit' 
@@ -318,35 +360,51 @@ export default function GamesList() {
                     </Box>
 
                     <Flex justify="space-between" align="end">
-                      <Box>
-                        <Text 
-                          fontSize="xs" 
-                          color="whiteAlpha.400" 
-                          textTransform="uppercase" 
-                          fontWeight="semibold"
-                          letterSpacing="wider"
-                          mb="1"
-                        >
-                          Buy-in
-                        </Text>
-                        <Flex align="center" gap="2">
-                          <Box 
-                            p="1.5" 
-                            borderRadius="lg" 
-                            bg="rgba(6, 182, 212, 0.15)"
-                            borderWidth="1px"
-                            borderColor="cyan.500/30"
+                      <Flex direction="column" gap="3">
+                        <Box>
+                          <Text 
+                            fontSize="xs" 
+                            color="whiteAlpha.600" 
+                            textTransform="uppercase" 
+                            fontWeight="semibold"
+                            letterSpacing="wider"
+                            mb="1"
                           >
-                            <Wallet size={18} weight="fill" color="#22d3ee" />
-                          </Box>
-                          <Text fontSize="xl" fontFamily="mono" fontWeight="bold" color="white">
-                            {game.buyinAmount.toLocaleString()}
+                            Buy-in
                           </Text>
-                          <Text fontSize="sm" color="whiteAlpha.500" fontWeight="medium">
-                            {game.currency}
-                          </Text>
+                          <Flex align="center" gap="2">
+                            <Box 
+                              p="1.5" 
+                              borderRadius="lg" 
+                              bg="rgba(6, 182, 212, 0.15)"
+                              borderWidth="1px"
+                              borderColor="cyan.500/30"
+                            >
+                              <Wallet size={18} weight="fill" color="#22d3ee" />
+                            </Box>
+                            <Text fontSize="xl" fontFamily="mono" fontWeight="bold" color="white">
+                              {game.buyinAmount.toLocaleString()}
+                            </Text>
+                            <Text fontSize="sm" color="whiteAlpha.500" fontWeight="medium">
+                              {game.currency}
+                            </Text>
+                          </Flex>
+                        </Box>
+                        <Flex gap="4">
+                          <Flex align="center" gap="1.5">
+                            <UsersFour size={16} weight="fill" color="rgba(255, 255, 255, 0.5)" />
+                            <Text fontSize="sm" color="whiteAlpha.600" fontWeight="medium">
+                              {game.playerCount || 0} players
+                            </Text>
+                          </Flex>
+                          <Flex align="center" gap="1.5">
+                            <Coin size={16} weight="fill" color="rgba(255, 255, 255, 0.5)" />
+                            <Text fontSize="sm" color="whiteAlpha.600" fontWeight="medium">
+                              {game.smallBlind}/{game.bigBlind}
+                            </Text>
+                          </Flex>
                         </Flex>
-                      </Box>
+                      </Flex>
 
                       <Box
                         p="2.5"
@@ -377,6 +435,78 @@ export default function GamesList() {
         onClose={() => setIsOpen(false)} 
         onSuccess={handleSessionCreated}
       />
+
+      {/* Delete Session Dialog */}
+      <Dialog.Root open={isDeleteDialogOpen} onOpenChange={(e) => setIsDeleteDialogOpen(e.open)}>
+        <Portal>
+          <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
+          <Dialog.Positioner>
+            <Dialog.Content
+              bg="#1a1a2e"
+              borderWidth="1px"
+              borderColor="whiteAlpha.100"
+              borderRadius="2xl"
+              shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
+              maxW="md"
+              mx="4"
+            >
+              <Dialog.Header pt="6" pb="2" px={{ base: "4", md: "6" }}>
+                <Dialog.Title color="white" fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
+                  Delete Session?
+                </Dialog.Title>
+                <Dialog.Description color="whiteAlpha.500" fontSize="sm" mt="1">
+                  {deleteTarget ? `Delete "${deleteTarget.title}" and all its data.` : 'Delete this session.'}
+                </Dialog.Description>
+              </Dialog.Header>
+              <Dialog.Body px={{ base: "4", md: "6" }} pb="4">
+                <Box borderRadius="xl" bg="rgba(239, 68, 68, 0.1)" borderWidth="1px" borderColor="red.500/30" p="3">
+                  <Text color="red.300" fontSize="sm">
+                    This action cannot be undone.
+                  </Text>
+                </Box>
+              </Dialog.Body>
+              <Dialog.Footer pb="6" px={{ base: "4", md: "6" }}>
+                <Flex gap="3" w="full">
+                  <Button
+                    flex="1"
+                    h="12"
+                    variant="outline"
+                    colorPalette="gray"
+                    borderColor="whiteAlpha.200"
+                    color="whiteAlpha.700"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
+                    onClick={() => setIsDeleteDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    flex="1"
+                    h="12"
+                    bg="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    color="white"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    onClick={handleDeleteSession}
+                    loading={isDeleting}
+                    _hover={{
+                      bg: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 8px 20px rgba(239, 68, 68, 0.3)'
+                    }}
+                    transition="all 0.2s"
+                  >
+                    Delete Session
+                  </Button>
+                </Flex>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
     </Box>
   )
 }

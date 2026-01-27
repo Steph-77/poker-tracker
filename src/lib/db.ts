@@ -77,6 +77,7 @@ export async function createGame(params: {
   expectedPlayers?: number
   smallBlind?: number
   bigBlind?: number
+  createdAt?: string
 }): Promise<Game> {
   const { data, error} = await supabase
     .from('games')
@@ -89,7 +90,8 @@ export async function createGame(params: {
       expected_players: params.expectedPlayers || 6,
       small_blind: params.smallBlind || 5,
       big_blind: params.bigBlind || 10,
-      status: 'active'
+      status: 'active',
+      created_at: params.createdAt || undefined
     })
     .select()
     .single()
@@ -107,6 +109,7 @@ export async function updateGame(params: {
   expectedPlayers?: number
   smallBlind?: number
   bigBlind?: number
+  createdAt?: string
 }): Promise<Game> {
   const updates: any = {}
 
@@ -117,6 +120,7 @@ export async function updateGame(params: {
   if (params.expectedPlayers !== undefined) updates.expected_players = params.expectedPlayers
   if (params.smallBlind !== undefined) updates.small_blind = params.smallBlind
   if (params.bigBlind !== undefined) updates.big_blind = params.bigBlind
+  if (params.createdAt !== undefined) updates.created_at = params.createdAt
 
   const { data, error } = await supabase
     .from('games')
@@ -154,7 +158,21 @@ export async function listGames(): Promise<Game[]> {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data.map(mapGame)
+  
+  // Get player counts for each game
+  const gamesWithCounts = await Promise.all(
+    data.map(async (row) => {
+      const game = mapGame(row)
+      const { count } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .eq('game_id', game.id)
+      game.playerCount = count || 0
+      return game
+    })
+  )
+  
+  return gamesWithCounts
 }
 
 export async function getGame(gameId: string): Promise<Game | null> {

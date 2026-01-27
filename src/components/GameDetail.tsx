@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { forwardRef, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -15,6 +15,7 @@ import {
   IconButton,
   Image,
   Input,
+  type InputProps,
   Portal,
   Spinner,
   Stack,
@@ -26,7 +27,8 @@ import {
   MenuContent,
   MenuItem,
 } from '@chakra-ui/react'
-import { ArrowLeft, Plus, Trash, TrendUp, TrendDown, Check, Wallet, Cards, Calculator, PencilSimple, CaretDown } from '@phosphor-icons/react'
+import DatePicker from 'react-datepicker'
+import { ArrowLeft, Plus, Trash, TrendUp, TrendDown, Check, Wallet, Cards, Calculator, PencilSimple, CaretDown, UsersFour, Coin } from '@phosphor-icons/react'
 import { Game, PlayerWithStats, SettlementResult, ChipSetWithDenominations } from '@/lib/types'
 import { getGameWithStats, addPlayer, addBuyin, setFinalStack, calculateGameSettlement, closeGame, deletePlayer, updateGame, deleteGame, deleteChipSet, listChipSets, createChipSet, updateChipSet } from '@/lib/db'
 import { toaster } from './ui/toaster'
@@ -49,6 +51,35 @@ const BLIND_OPTIONS = [
   { label: '50 / 100', small: 50, big: 100 },
 ]
 
+const DateTimeInput = forwardRef<HTMLInputElement, InputProps & { value?: string; onClick?: () => void }>(
+  ({ value, onClick, placeholder, ...props }, ref) => (
+    <Input
+      ref={ref}
+      value={value}
+      onClick={onClick}
+      placeholder={placeholder}
+      readOnly
+      bg="rgba(255, 255, 255, 0.03)"
+      borderColor="whiteAlpha.100"
+      borderRadius="xl"
+      color="white"
+      h="12"
+      px="4"
+      fontSize="md"
+      cursor="pointer"
+      _placeholder={{ color: 'whiteAlpha.300' }}
+      _hover={{ borderColor: 'whiteAlpha.200' }}
+      _focus={{ 
+        borderColor: 'purple.500', 
+        boxShadow: '0 0 0 1px var(--chakra-colors-purple-500)',
+        bg: 'rgba(255, 255, 255, 0.05)'
+      }}
+      {...props}
+    />
+  )
+)
+DateTimeInput.displayName = 'DateTimeInput'
+
 export default function GameDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -70,6 +101,8 @@ export default function GameDetail() {
   const [isChipCalcOpen, setIsChipCalcOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editTitle, setEditTitle] = useState('')
+  const [editSessionDate, setEditSessionDate] = useState<Date | null>(null)
+  const [editSessionTime, setEditSessionTime] = useState<Date | null>(null)
   const [editBuyinAmount, setEditBuyinAmount] = useState('')
   const [editChipsPerBuyin, setEditChipsPerBuyin] = useState('')
   const [editExpectedPlayers, setEditExpectedPlayers] = useState('')
@@ -134,6 +167,9 @@ export default function GameDetail() {
   const handleOpenEditDialog = async () => {
     if (!game) return
     setEditTitle(game.title)
+    const createdAt = new Date(game.createdAt)
+    setEditSessionDate(createdAt)
+    setEditSessionTime(createdAt)
     setEditBuyinAmount(game.buyinAmount.toString())
     setEditChipsPerBuyin(game.chipsPerBuyin.toString())
     setEditExpectedPlayers((game.expectedPlayers || 6).toString())
@@ -221,6 +257,12 @@ export default function GameDetail() {
     if (!id || !game) return
     
     try {
+      const createdAtDate = editSessionDate ? new Date(editSessionDate) : null
+      if (createdAtDate && editSessionTime) {
+        createdAtDate.setHours(editSessionTime.getHours(), editSessionTime.getMinutes(), 0, 0)
+      }
+      const createdAt = createdAtDate ? createdAtDate.toISOString() : undefined
+
       await updateGame({
         gameId: id,
         title: editTitle || undefined,
@@ -229,7 +271,8 @@ export default function GameDetail() {
         expectedPlayers: parseInt(editExpectedPlayers) || undefined,
         smallBlind: parseInt(editSmallBlind) || undefined,
         bigBlind: parseInt(editBigBlind) || undefined,
-        chipSetId: editChipSetId || null
+        chipSetId: editChipSetId || null,
+        createdAt
       })
       
       await loadGameData()
@@ -439,45 +482,41 @@ export default function GameDetail() {
         borderBottom="1px solid"
         borderColor="whiteAlpha.100"
       >
-        <Container maxW="container.lg" py="6" px={{ base: "4", md: "8" }} mx="auto">
-        <Flex align="center" gap="4">
-            <Button
-              onClick={() => navigate('/')}
-              size="lg"
-              variant="ghost"
-              colorPalette="purple"
-              px="4"
-              h="12"
-              gap="2"
-            >
-              <ArrowLeft size={20} weight="bold" />
-              <Text display={{ base: "none", sm: "block" }}>Back</Text>
-            </Button>
-            
-            <Box flex="1">
-              <Flex align="center" justify="space-between">
-                <Flex direction="column" gap="2">
-                  <Flex align="center" gap="4">
-                    <Heading size="xl" color="white">{game.title}</Heading>
+        <Container maxW="container.lg" py={{ base: "4", md: "6" }} px={{ base: "4", md: "8" }} mx="auto">
+          <Box>
+              <Flex direction="column" gap={{ base: "2", md: "3" }}>
+                <Flex align="center" justify="space-between" gap="3" flexWrap="wrap">
+                  <Flex align="center" gap="3" minW="0">
+                    <Button
+                      onClick={() => navigate('/')}
+                      variant="ghost"
+                      colorPalette="purple"
+                      px={{ base: "2", md: "3" }}
+                      h={{ base: "9", md: "10" }}
+                      minW="auto"
+                    >
+                      <ArrowLeft size={18} weight="bold" />
+                    </Button>
+                    <Heading size={{ base: "lg", md: "xl" }} color="white" lineClamp={1}>
+                      {game.title}
+                    </Heading>
+                  </Flex>
+                  <Flex align="center" gap="2">
                     <IconButton
-                      size="sm"
+                      size="md"
                       variant="ghost"
                       colorPalette="purple"
                       onClick={handleOpenEditDialog}
                       aria-label="Edit session"
+                      h="10"
+                      w="10"
                     >
-                      <PencilSimple size={18} weight="bold" />
-                    </IconButton>
-                    <IconButton
-                      size="sm"
-                      variant="ghost"
-                      colorPalette="red"
-                      onClick={() => setIsDeleteDialogOpen(true)}
-                      aria-label="Delete session"
-                    >
-                      <Trash size={18} weight="bold" />
+                      <PencilSimple size={20} weight="bold" />
                     </IconButton>
                   </Flex>
+                </Flex>
+
+                <Flex direction="column" gap="3">
                   <Flex align="center" gap="4" flexWrap="wrap">
                     <Flex align="center" gap="2">
                       <Box p="1.5" borderRadius="lg" bg="rgba(6, 182, 212, 0.15)">
@@ -494,46 +533,40 @@ export default function GameDetail() {
                       <Text fontSize="sm" color="whiteAlpha.500">
                         <Text as="span" fontFamily="mono" fontWeight="bold" color="purple.400">{game.chipsPerBuyin.toLocaleString()}</Text> chips
                       </Text>
-                      <IconButton
-                        size="sm"
-                        variant="ghost"
-                        colorPalette="purple"
-                        onClick={() => setIsChipCalcOpen(true)}
-                        aria-label="Calculate chip distribution"
-                      >
-                        <Calculator size={16} weight="bold" />
-                      </IconButton>
                     </Flex>
                   </Flex>
-                </Flex>
-                
-                <Flex
-                  align="center"
-                  gap="2"
-                  px="5"
-                  py="2.5"
-                  borderRadius="full"
-                  bg={isClosed ? 'rgba(255,255,255,0.05)' : 'rgba(34, 197, 94, 0.15)'}
-                  borderWidth="1px"
-                  borderColor={isClosed ? 'whiteAlpha.100' : 'green.500/30'}
-                  flexShrink="0"
-                >
-                  {!isClosed && (
-                    <Box w="2.5" h="2.5" bg="green.400" borderRadius="full" shadow="0 0 10px rgba(34, 197, 94, 0.8)" />
-                  )}
-                  <Text
-                    fontSize="sm"
-                    fontWeight="bold"
-                    color={isClosed ? 'whiteAlpha.500' : 'green.400'}
-                    textTransform="uppercase"
-                    letterSpacing="wider"
-                  >
-                    {isClosed ? 'Closed' : 'Live'}
-                  </Text>
+                  <Flex align="center" gap="4" flexWrap="wrap">
+                    <Flex align="center" gap="2">
+                      <Box p="1.5" borderRadius="lg" bg="rgba(34, 197, 94, 0.15)">
+                        <UsersFour size={14} weight="fill" color="#22c55e" />
+                      </Box>
+                      <Text fontSize="sm" color="whiteAlpha.500">
+                        <Text as="span" fontFamily="mono" fontWeight="bold" color="green.400">{players.length}</Text> players
+                      </Text>
+                    </Flex>
+                    <Flex align="center" gap="2">
+                      <Box p="1.5" borderRadius="lg" bg="rgba(251, 191, 36, 0.15)">
+                        <Coin size={14} weight="fill" color="#fbbf24" />
+                      </Box>
+                      <Text fontSize="sm" color="whiteAlpha.500">
+                        <Text as="span" fontFamily="mono" fontWeight="bold" color="yellow.400">{game.smallBlind}/{game.bigBlind}</Text> blinds
+                      </Text>
+                    </Flex>
+                    <IconButton
+                      size="md"
+                      variant="ghost"
+                      colorPalette="purple"
+                      onClick={() => setIsChipCalcOpen(true)}
+                      aria-label="Calculate chip distribution"
+                      h="10"
+                      w="10"
+                    >
+                      <Calculator size={18} weight="bold" />
+                    </IconButton>
+                  </Flex>
                 </Flex>
               </Flex>
             </Box>
-          </Flex>
         </Container>
       </Box>
 
@@ -1127,7 +1160,8 @@ export default function GameDetail() {
         isOpen={isChipCalcOpen}
         onClose={() => setIsChipCalcOpen(false)}
         chipsPerBuyin={game.chipsPerBuyin}
-        expectedPlayers={game.expectedPlayers || players.length || 6}
+        expectedPlayers={game.expectedPlayers || 6}
+        actualPlayers={players.length}
         chipSet={chipSets.find(s => s.id === game.chipSetId) || null}
       />
 
@@ -1392,6 +1426,38 @@ export default function GameDetail() {
                       _focus={{ borderColor: 'purple.500' }}
                     />
                   </Field.Root>
+
+                  <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap="4">
+                    <Field.Root>
+                      <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">
+                        Session Date
+                      </Field.Label>
+                      <DatePicker
+                        selected={editSessionDate}
+                        onChange={(date) => setEditSessionDate(date as Date | null)}
+                        customInput={<DateTimeInput placeholder="Select date" />}
+                        dateFormat="MMM d, yyyy"
+                        popperPlacement="bottom-start"
+                      />
+                    </Field.Root>
+
+                    <Field.Root>
+                      <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">
+                        Session Time
+                      </Field.Label>
+                      <DatePicker
+                        selected={editSessionTime}
+                        onChange={(date) => setEditSessionTime(date as Date | null)}
+                        customInput={<DateTimeInput placeholder="Select time" />}
+                        showTimeSelect
+                        showTimeSelectOnly
+                        timeIntervals={30}
+                        timeCaption="Time"
+                        dateFormat="h:mm aa"
+                        popperPlacement="bottom-start"
+                      />
+                    </Field.Root>
+                  </Grid>
 
                   <Field.Root>
                     <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">
