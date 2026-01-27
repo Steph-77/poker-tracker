@@ -94,11 +94,11 @@ export default function GamesList() {
                   >
                     SplitChips
                   </Heading>
-                  <Flex align="center" gap="2" mt="1">
-                    <Spade size={12} color="#a855f7" />
-                    <Heart size={12} color="#ef4444" />
-                    <Diamond size={12} color="#ef4444" />
-                    <ClubSimple size={12} color="#a855f7" />
+                  <Flex align="center" gap="3" mt="3">
+                    <Spade size={16} color="#a855f7" />
+                    <Heart size={16} color="#ef4444" />
+                    <Diamond size={16} color="#ef4444" />
+                    <ClubSimple size={16} color="#a855f7" />
                   </Flex>
                 </Box>
               </Flex>
