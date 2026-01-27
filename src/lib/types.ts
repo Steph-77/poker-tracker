@@ -2,10 +2,35 @@ export interface Game {
   id: string
   title: string
   buyinAmount: number
+  chipsPerBuyin: number
   currency: string
   status: 'active' | 'closed'
   createdAt: string
   closedAt?: string
+  chipSetId?: string
+  expectedPlayers?: number
+  smallBlind?: number
+  bigBlind?: number
+}
+
+export interface ChipSet {
+  id: string
+  name: string
+  ownerId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChipDenomination {
+  id: string
+  chipSetId: string
+  value: number
+  quantity: number
+  createdAt: string
+}
+
+export interface ChipSetWithDenominations extends ChipSet {
+  denominations: ChipDenomination[]
 }
 
 export interface Player {
@@ -47,6 +72,8 @@ export interface Transfer {
 export interface PlayerWithStats {
   player: Player
   buyinCount: number
+  rebuyCount: number
+  hasBuyin: boolean
   investedTotal: number
   finalStack?: number
   net?: number
