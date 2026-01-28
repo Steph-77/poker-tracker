@@ -1164,6 +1164,8 @@ export default function GameDetail() {
         expectedPlayers={game.expectedPlayers || 6}
         actualPlayers={players.length}
         chipSet={chipSets.find(s => s.id === game.chipSetId) || null}
+        smallBlind={game.smallBlind}
+        bigBlind={game.bigBlind}
       />
 
       {/* Delete Session Dialog */}

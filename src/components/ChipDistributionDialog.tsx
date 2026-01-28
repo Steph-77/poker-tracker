@@ -21,6 +21,8 @@ interface ChipDistributionDialogProps {
   expectedPlayers: number
   actualPlayers: number
   chipSet?: ChipSetWithDenominations | null
+  smallBlind?: number
+  bigBlind?: number
 }
 export default function ChipDistributionDialog({ 
   isOpen, 
@@ -28,7 +30,9 @@ export default function ChipDistributionDialog({
   chipsPerBuyin, 
   expectedPlayers,
   actualPlayers,
-  chipSet 
+  chipSet,
+  smallBlind,
+  bigBlind
 }: ChipDistributionDialogProps) {
   const distribution = useMemo(() => {
     if (!chipSet || chipSet.denominations.length === 0) {
@@ -37,9 +41,11 @@ export default function ChipDistributionDialog({
     return calculateChipDistribution({
       denominations: chipSet.denominations,
       expectedPlayers,
-      chipsPerBuyin
+      chipsPerBuyin,
+      smallBlind,
+      bigBlind
     })
-  }, [chipSet, expectedPlayers, chipsPerBuyin])
+  }, [chipSet, expectedPlayers, chipsPerBuyin, smallBlind, bigBlind])
 
   const supportCheck = useMemo(() => {
     if (!chipSet || chipSet.denominations.length === 0) {
