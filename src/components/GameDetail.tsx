@@ -92,12 +92,16 @@ export default function GameDetail() {
   const [newPlayerName, setNewPlayerName] = useState('')
   const [isAddingPlayer, setIsAddingPlayer] = useState(false)
   const [finalStackInputs, setFinalStackInputs] = useState<Record<string, string>>({})
+  const [validatedFinalStacks, setValidatedFinalStacks] = useState<Record<string, boolean>>({})
   const [isClosing, setIsClosing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeletePlayerDialogOpen, setIsDeletePlayerDialogOpen] = useState(false)
   const [deletePlayerTarget, setDeletePlayerTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isRebuyConfirmOpen, setIsRebuyConfirmOpen] = useState(false)
+  const [rebuyTarget, setRebuyTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isConfirmingRebuy, setIsConfirmingRebuy] = useState(false)
   const [isDeleteChipSetDialogOpen, setIsDeleteChipSetDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isChipCalcOpen, setIsChipCalcOpen] = useState(false)
@@ -125,10 +129,18 @@ export default function GameDetail() {
   }, [id])
 
   useEffect(() => {
-    if (players.length > 0) {
-      calculateSettlementData()
+    if (players.length === 0) {
+      setSettlement(null)
+      return
     }
-  }, [finalStackInputs])
+
+    const allValidated = players.every((p) => validatedFinalStacks[p.player.id])
+    if (allValidated) {
+      calculateSettlementData()
+    } else {
+      setSettlement(null)
+    }
+  }, [players, validatedFinalStacks])
 
   const loadGameData = async () => {
     if (!id) return
@@ -139,12 +151,15 @@ export default function GameDetail() {
         setPlayers(data.players)
         
         const inputs: Record<string, string> = {}
+        const validated: Record<string, boolean> = {}
         data.players.forEach(p => {
           if (p.finalStack !== undefined) {
             inputs[p.player.id] = p.finalStack.toString()
+            validated[p.player.id] = true
           }
         })
         setFinalStackInputs(inputs)
+        setValidatedFinalStacks(validated)
       }
 
       try {
@@ -370,18 +385,74 @@ export default function GameDetail() {
     }
   }
 
+  const openRebuyConfirmation = (playerId: string, playerName: string) => {
+    setRebuyTarget({ id: playerId, name: playerName })
+    setIsRebuyConfirmOpen(true)
+  }
+
+  const handleConfirmRebuy = async () => {
+    if (!rebuyTarget || !id) return
+    setIsConfirmingRebuy(true)
+    try {
+      await addBuyin(id, rebuyTarget.id, 'rebuy')
+      await loadGameData()
+      toaster.create({
+        title: `Rebuy added for ${rebuyTarget.name}`,
+        type: 'success',
+        duration: 2000,
+      })
+      setIsRebuyConfirmOpen(false)
+      setRebuyTarget(null)
+    } catch (error: any) {
+      toaster.create({
+        title: error.message || 'Failed to add rebuy',
+        type: 'error',
+        duration: 3000,
+      })
+    } finally {
+      setIsConfirmingRebuy(false)
+    }
+  }
+
   const handleFinalStackChange = async (playerId: string, value: string) => {
     setFinalStackInputs(prev => ({ ...prev, [playerId]: value }))
-    
+  }
+
+  const handleValidateFinalStack = async (playerId: string) => {
+    if (!id) return
+
+    const value = finalStackInputs[playerId]
     const amount = parseInt(value)
-    if (!isNaN(amount) && amount >= 0 && id) {
-      try {
-        await setFinalStack(id, playerId, amount)
-        await loadGameData()
-      } catch (error: any) {
-        console.error('Failed to set final stack:', error)
-      }
+    if (isNaN(amount) || amount < 0) {
+      toaster.create({
+        title: 'Invalid final stack',
+        description: 'Please enter a valid non-negative number before validating.',
+        type: 'error',
+        duration: 3000,
+      })
+      return
     }
+
+    try {
+      await setFinalStack(id, playerId, amount)
+      setValidatedFinalStacks((prev) => ({ ...prev, [playerId]: true }))
+      toaster.create({
+        title: 'Final stack validated',
+        type: 'success',
+        duration: 1500,
+      })
+    } catch (error: any) {
+      toaster.create({
+        title: error.message || 'Failed to validate final stack',
+        type: 'error',
+        duration: 3000,
+      })
+    }
+  }
+
+  const handleEditFinalStack = (playerId: string) => {
+    setValidatedFinalStacks((prev) => ({ ...prev, [playerId]: false }))
+    setSettlement(null)
   }
 
   const handleCloseGame = async () => {
@@ -599,7 +670,7 @@ export default function GameDetail() {
         </Container>
       </Box>
 
-      <Container maxW="container.lg" py="6" px={{ base: "4", md: "8" }} mx="auto">
+      <Container maxW="container.xl" py="6" px={{ base: "4", md: "8" }} mx="auto">
         <Tabs.Root defaultValue="players" variant="enclosed" w="full">
           <Tabs.List 
             w="full"
@@ -745,7 +816,7 @@ export default function GameDetail() {
                   </VStack>
                 </Box>
               ) : (
-                <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap="5" w="full">
+                <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }} gap="5" w="full">
                   {players.map((p, index) => {
                     // Assign a card suit to each player based on their index
                     const SuitIcons = [Spade, Heart, Diamond, ClubSimple]
@@ -830,7 +901,7 @@ export default function GameDetail() {
                                 borderRadius="xl"
                                 fontWeight="semibold"
                                 _hover={{ bg: 'purple.500/15', borderColor: 'purple.400', color: 'purple.200' }}
-                                onClick={() => handleAddBuyin(p.player.id, p.player.displayName, 'rebuy')}
+                                onClick={() => openRebuyConfirmation(p.player.id, p.player.displayName)}
                               >
                                 <Plus size={18} weight="bold" />
                                 Rebuy
@@ -864,34 +935,87 @@ export default function GameDetail() {
                     borderWidth="1px"
                     borderRadius="2xl"
                     p={{ base: "5", md: "8" }}
+                    w="full"
                   >
                     <Heading size="md" color="white" mb="6">Enter Final Chip Stacks</Heading>
-                    <VStack gap="5">
-                      {players.map((p) => (
-                        <Field.Root key={p.player.id} w="full">
-                          <Field.Label color="whiteAlpha.600" fontSize="sm" fontWeight="semibold" mb="2">{p.player.displayName}</Field.Label>
-                          <Input
-                            type="number"
-                            placeholder="Enter final stack..."
-                            value={finalStackInputs[p.player.id] || ''}
-                            onChange={(e) => handleFinalStackChange(p.player.id, e.target.value)}
-                            disabled={isClosed}
-                            h="14"
-                            px="5"
-                            fontFamily="mono"
-                            fontSize="xl"
-                            fontWeight="bold"
-                            bg="rgba(255,255,255,0.04)"
-                            borderColor="whiteAlpha.150"
-                            borderRadius="xl"
-                            color="white"
-                            _placeholder={{ color: 'whiteAlpha.300', fontWeight: 'normal', fontSize: 'md' }}
-                            _hover={{ borderColor: 'whiteAlpha.300', bg: 'rgba(255,255,255,0.05)' }}
-                            _focus={{ borderColor: 'cyan.500', bg: 'rgba(6, 182, 212, 0.05)', boxShadow: '0 0 0 1px rgba(6, 182, 212, 0.5)' }}
-                          />
-                        </Field.Root>
-                      ))}
-                    </VStack>
+                    <Grid
+                      templateColumns={{ base: '1fr', md: 'repeat(2, minmax(0, 1fr))' }}
+                      gap="5"
+                      w="full"
+                    >
+                      {players.map((p) => {
+                        const currentValue = finalStackInputs[p.player.id] ?? ''
+                        const parsedValue = parseInt(currentValue)
+                        const canValidate = currentValue.trim() !== '' && !isNaN(parsedValue) && parsedValue >= 0
+
+                        return (
+                          <Flex key={p.player.id} direction="column" w="full">
+                            <Field.Root w="full">
+                            <Field.Label color="whiteAlpha.600" fontSize="sm" fontWeight="semibold" mb="2">{p.player.displayName}</Field.Label>
+                            <Flex gap="3" align="center" direction="row" w="full">
+                              <Input
+                                type="number"
+                                placeholder="Enter final stack..."
+                                value={currentValue}
+                                onChange={(e) => handleFinalStackChange(p.player.id, e.target.value)}
+                                disabled={isClosed || !!validatedFinalStacks[p.player.id]}
+                                h="14"
+                                px="5"
+                                flex="1"
+                                fontFamily="mono"
+                                fontSize="xl"
+                                fontWeight="bold"
+                                bg={validatedFinalStacks[p.player.id] ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255,255,255,0.04)'}
+                                borderColor={validatedFinalStacks[p.player.id] ? 'green.500/40' : 'whiteAlpha.150'}
+                                borderRadius="xl"
+                                color="white"
+                                _placeholder={{ color: 'whiteAlpha.300', fontWeight: 'normal', fontSize: 'md' }}
+                                _hover={{ borderColor: validatedFinalStacks[p.player.id] ? 'green.500/50' : 'whiteAlpha.300', bg: validatedFinalStacks[p.player.id] ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255,255,255,0.05)' }}
+                                _focus={{ borderColor: 'cyan.500', bg: 'rgba(6, 182, 212, 0.05)', boxShadow: '0 0 0 1px rgba(6, 182, 212, 0.5)' }}
+                              />
+                              {!isClosed && (
+                                validatedFinalStacks[p.player.id] ? (
+                                  <HStack gap="2" justify={{ base: 'flex-end', md: 'flex-start' }}>
+                                    <Flex h="14" w="10" color="green.300" align="center" justify="center">
+                                      <Check size={18} weight="bold" />
+                                    </Flex>
+                                    <IconButton
+                                      aria-label={`Edit ${p.player.displayName} final stack`}
+                                      h="14"
+                                      w="10"
+                                      variant="ghost"
+                                      color="whiteAlpha.700"
+                                      borderRadius="lg"
+                                      onClick={() => handleEditFinalStack(p.player.id)}
+                                      _hover={{ bg: 'transparent', color: 'white' }}
+                                    >
+                                      <PencilSimple size={18} weight="bold" />
+                                    </IconButton>
+                                  </HStack>
+                                ) : (
+                                  <Button
+                                    h="14"
+                                    minW="96px"
+                                    bg="linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+                                    color="white"
+                                    borderRadius="xl"
+                                    fontWeight="semibold"
+                                    onClick={() => handleValidateFinalStack(p.player.id)}
+                                    disabled={!canValidate}
+                                    shadow={canValidate ? '0 4px 15px rgba(34, 197, 94, 0.25)' : 'none'}
+                                    _hover={canValidate ? { shadow: '0 6px 20px rgba(34, 197, 94, 0.35)', transform: 'translateY(-1px)' } : {}}
+                                  >
+                                    <Check size={16} weight="bold" />
+                                    Validate
+                                  </Button>
+                                )
+                              )}
+                            </Flex>
+                          </Field.Root>
+                          </Flex>
+                        )
+                      })}
+                    </Grid>
                   </Box>
 
                   {settlement && (
@@ -962,7 +1086,7 @@ export default function GameDetail() {
                   <Flex align="center" gap="3">
                     <Box w="2.5" h="2.5" bg="cyan.400" borderRadius="full" shadow="0 0 10px rgba(6, 182, 212, 0.6)" />
                     <Text color="cyan.300" fontSize="md">
-                      Enter final stacks for all players and ensure totals match before viewing settlement.
+                      Enter and validate final stacks for all players, then ensure totals match before viewing settlement.
                     </Text>
                   </Flex>
                 </Box>
@@ -1331,6 +1455,97 @@ export default function GameDetail() {
                     transition="all 0.2s"
                   >
                     Remove Player
+                  </Button>
+                </Flex>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      {/* Rebuy Confirmation Dialog */}
+      <Dialog.Root
+        open={isRebuyConfirmOpen}
+        onOpenChange={(e) => {
+          setIsRebuyConfirmOpen(e.open)
+          if (!e.open) {
+            setRebuyTarget(null)
+          }
+        }}
+      >
+        <Portal>
+          <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
+          <Dialog.Positioner>
+            <Dialog.Content
+              bg="#1a1a2e"
+              borderWidth="1px"
+              borderColor="whiteAlpha.100"
+              borderRadius="2xl"
+              shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
+              maxW="md"
+              mx="4"
+            >
+              <Dialog.Header pt="6" pb="2" px={{ base: '4', md: '6' }}>
+                <Dialog.Title color="white" fontSize={{ base: 'lg', md: 'xl' }} fontWeight="bold">
+                  {rebuyTarget
+                    ? `Add another buy-in for ${rebuyTarget.name}?`
+                    : 'Add another buy-in for this player?'}
+                </Dialog.Title>
+              </Dialog.Header>
+
+              <Dialog.Body px={{ base: '4', md: '6' }} pb="4">
+                <Box
+                  borderRadius="xl"
+                  bg="rgba(168, 85, 247, 0.12)"
+                  borderWidth="1px"
+                  borderColor="purple.500/30"
+                  p="4"
+                >
+                  <Text color="whiteAlpha.700" fontSize="sm" mb="1">
+                    Rebuy Amount
+                  </Text>
+                  <Text color="white" fontFamily="mono" fontSize="2xl" fontWeight="bold">
+                    +{game.buyinAmount.toLocaleString()} {game.currency}
+                  </Text>
+                </Box>
+              </Dialog.Body>
+
+              <Dialog.Footer pb="6" px={{ base: '4', md: '6' }}>
+                <Flex gap="3" w="full">
+                  <Button
+                    flex="1"
+                    h="12"
+                    variant="outline"
+                    colorPalette="gray"
+                    borderColor="whiteAlpha.200"
+                    color="whiteAlpha.700"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
+                    onClick={() => setIsRebuyConfirmOpen(false)}
+                    disabled={isConfirmingRebuy}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    flex="1"
+                    h="12"
+                    bg="linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)"
+                    color="white"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    onClick={handleConfirmRebuy}
+                    loading={isConfirmingRebuy}
+                    _hover={{
+                      bg: 'linear-gradient(135deg, #9333ea 0%, #6d28d9 100%)',
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 8px 20px rgba(168, 85, 247, 0.3)',
+                    }}
+                    transition="all 0.2s"
+                  >
+                    Confirm Rebuy
                   </Button>
                 </Flex>
               </Dialog.Footer>
