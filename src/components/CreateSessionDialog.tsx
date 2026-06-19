@@ -221,6 +221,17 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess, editGa
 
   const handleSubmit = async () => {
     if (!buyinAmount) return
+
+    if (blindOption.small <= 0 || blindOption.big <= 0 || blindOption.big < blindOption.small) {
+      toaster.create({
+        title: 'Invalid blinds',
+        description: 'Blinds must be positive and big blind must be greater than or equal to small blind.',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
     setIsCreating(true)
     try {
       const createdAtDate = sessionDate ? new Date(sessionDate) : null

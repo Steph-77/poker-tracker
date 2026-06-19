@@ -47,6 +47,7 @@ const DEFAULT_DENOMS = [
 
 const BLIND_OPTIONS = [
   { label: '5 / 10', small: 5, big: 10 },
+  { label: '10 / 10', small: 10, big: 10 },
   { label: '10 / 20', small: 10, big: 20 },
   { label: '25 / 50', small: 25, big: 50 },
   { label: '50 / 100', small: 50, big: 100 },
@@ -167,6 +168,10 @@ export default function GameDetail() {
 
   const handleOpenEditDialog = async () => {
     if (!game) return
+    setIsCreatingNewSet(false)
+    setIsEditingSet(false)
+    setNewChipSetName('')
+    setDenominations(DEFAULT_DENOMS)
     setEditTitle(game.title)
     const createdAt = new Date(game.createdAt)
     setEditSessionDate(createdAt)
@@ -256,6 +261,18 @@ export default function GameDetail() {
     }
 
     if (!id || !game) return
+
+    const parsedSmallBlind = parseInt(editSmallBlind)
+    const parsedBigBlind = parseInt(editBigBlind)
+    if (isNaN(parsedSmallBlind) || isNaN(parsedBigBlind) || parsedSmallBlind <= 0 || parsedBigBlind <= 0 || parsedBigBlind < parsedSmallBlind) {
+      toaster.create({
+        title: 'Invalid blinds',
+        description: 'Blinds must be positive and big blind must be greater than or equal to small blind.',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
     
     try {
       const createdAtDate = editSessionDate ? new Date(editSessionDate) : null
@@ -270,8 +287,8 @@ export default function GameDetail() {
         buyinAmount: parseInt(editBuyinAmount) || undefined,
         chipsPerBuyin: parseInt(editChipsPerBuyin) || undefined,
         expectedPlayers: parseInt(editExpectedPlayers) || undefined,
-        smallBlind: parseInt(editSmallBlind) || undefined,
-        bigBlind: parseInt(editBigBlind) || undefined,
+        smallBlind: parsedSmallBlind,
+        bigBlind: parsedBigBlind,
         chipSetId: editChipSetId || null,
         createdAt
       })
@@ -287,9 +304,20 @@ export default function GameDetail() {
       console.error('Failed to update game:', error)
       toaster.create({
         title: 'Failed to update session',
+        description: error instanceof Error ? error.message : 'Unknown error',
         type: 'error',
         duration: 3000,
       })
+    }
+  }
+
+  const handleEditDialogOpenChange = (open: boolean) => {
+    setIsEditDialogOpen(open)
+    if (!open) {
+      setIsCreatingNewSet(false)
+      setIsEditingSet(false)
+      setNewChipSetName('')
+      setDenominations(DEFAULT_DENOMS)
     }
   }
 
@@ -1383,7 +1411,7 @@ export default function GameDetail() {
       </Dialog.Root>
 
       {/* Edit Session Dialog */}
-      <Dialog.Root open={isEditDialogOpen} onOpenChange={(e) => setIsEditDialogOpen(e.open)}>
+      <Dialog.Root open={isEditDialogOpen} onOpenChange={(e) => handleEditDialogOpenChange(e.open)}>
         <Portal>
           <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
           <Dialog.Positioner>
