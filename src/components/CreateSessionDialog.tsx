@@ -42,6 +42,7 @@ const DEFAULT_DENOMS = [
 
 const BLIND_OPTIONS = [
   { label: '5 / 10', small: 5, big: 10 },
+  { label: '10 / 10', small: 10, big: 10 },
   { label: '10 / 20', small: 10, big: 20 },
   { label: '25 / 50', small: 25, big: 50 },
   { label: '50 / 100', small: 50, big: 100 },
@@ -118,7 +119,7 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess, editGa
         setSessionTime(gameDate)
         setBuyinAmount(editGame.buyinAmount.toString())
         setChipsPerBuyin(editGame.chipsPerBuyin.toString())
-        setExpectedPlayers(editGame.expectedPlayers.toString())
+        setExpectedPlayers((editGame.expectedPlayers ?? 6).toString())
         const matchingBlind = BLIND_OPTIONS.find(opt => 
           opt.small === editGame.smallBlind && opt.big === editGame.bigBlind
         )
@@ -359,7 +360,7 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess, editGa
                     </Field.Label>
                     <DatePicker
                       selected={sessionDate}
-                      onChange={(date) => setSessionDate(date as Date | null)}
+                      onChange={(date: Date | null) => setSessionDate(date)}
                     customInput={<DateTimeInput placeholder="Select date" />}
                     dateFormat="MMM d, yyyy"
                     popperPlacement="bottom-start"
@@ -372,7 +373,7 @@ export default function CreateSessionDialog({ isOpen, onClose, onSuccess, editGa
                     </Field.Label>
                     <DatePicker
                       selected={sessionTime}
-                      onChange={(date) => setSessionTime(date as Date | null)}
+                      onChange={(date: Date | null) => setSessionTime(date)}
                     customInput={<DateTimeInput placeholder="Select time" />}
                     showTimeSelect
                     showTimeSelectOnly

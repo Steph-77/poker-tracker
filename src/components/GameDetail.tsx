@@ -1444,7 +1444,7 @@ export default function GameDetail() {
                       </Field.Label>
                       <DatePicker
                         selected={editSessionDate}
-                        onChange={(date) => setEditSessionDate(date as Date | null)}
+                        onChange={(date: Date | null) => setEditSessionDate(date)}
                         customInput={<DateTimeInput placeholder="Select date" />}
                         dateFormat="MMM d, yyyy"
                         popperPlacement="bottom-start"
@@ -1457,7 +1457,7 @@ export default function GameDetail() {
                       </Field.Label>
                       <DatePicker
                         selected={editSessionTime}
-                        onChange={(date) => setEditSessionTime(date as Date | null)}
+                        onChange={(date: Date | null) => setEditSessionTime(date)}
                         customInput={<DateTimeInput placeholder="Select time" />}
                         showTimeSelect
                         showTimeSelectOnly
