@@ -6,11 +6,13 @@ import {
   Card,
   Container,
   Dialog,
+  Field,
   Flex,
   Grid,
   Heading,
   Icon,
   Image,
+  Input,
   Portal,
   Spinner,
   Text,
@@ -25,6 +27,7 @@ import CreateSessionDialog from './CreateSessionDialog'
 
 export default function GamesList() {
   const navigate = useNavigate()
+  const gameAccessPin = import.meta.env.VITE_GAME_ACCESS_PIN || '0105'
   
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,6 +35,9 @@ export default function GamesList() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isPinDialogOpen, setIsPinDialogOpen] = useState(false)
+  const [pendingGameId, setPendingGameId] = useState<string | null>(null)
+  const [enteredPin, setEnteredPin] = useState('')
 
   useEffect(() => {
     loadGames()
@@ -60,6 +66,29 @@ export default function GamesList() {
   const openDeleteDialog = (game: Game) => {
     setDeleteTarget(game)
     setIsDeleteDialogOpen(true)
+  }
+
+  const requestGameAccess = (gameId: string) => {
+    setPendingGameId(gameId)
+    setEnteredPin('')
+    setIsPinDialogOpen(true)
+  }
+
+  const handlePinSubmit = () => {
+    if (!pendingGameId) return
+
+    if (enteredPin === gameAccessPin) {
+      setIsPinDialogOpen(false)
+      navigate(`/game/${pendingGameId}`)
+      return
+    }
+
+    toaster.create({
+      title: 'Incorrect PIN',
+      description: 'Please enter the correct game PIN.',
+      type: 'error',
+      duration: 2500,
+    })
   }
 
   const handleDeleteSession = async () => {
@@ -243,7 +272,7 @@ export default function GamesList() {
                   borderRadius="xl"
                   overflow="hidden"
                   cursor="pointer"
-                  onClick={() => navigate(`/game/${game.id}`)}
+                  onClick={() => requestGameAccess(game.id)}
                   transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
                   _hover={{
                     transform: 'translateY(-4px)',
@@ -445,9 +474,10 @@ export default function GamesList() {
               bg="#1a1a2e"
               borderWidth="1px"
               borderColor="whiteAlpha.100"
-              borderRadius="2xl"
+              borderRadius={{ base: 'xl', md: '2xl' }}
               shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
-              maxW="md"
+              maxW={{ base: 'calc(100vw - 1.5rem)', md: 'md' }}
+              w="full"
               mx="4"
             >
               <Dialog.Header pt="6" pb="2" px={{ base: "4", md: "6" }}>
@@ -500,6 +530,113 @@ export default function GamesList() {
                     transition="all 0.2s"
                   >
                     Delete Session
+                  </Button>
+                </Flex>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      {/* Game PIN Dialog */}
+      <Dialog.Root
+        open={isPinDialogOpen}
+        onOpenChange={(e) => {
+          setIsPinDialogOpen(e.open)
+          if (!e.open) {
+            setEnteredPin('')
+            setPendingGameId(null)
+          }
+        }}
+      >
+        <Portal>
+          <Dialog.Backdrop bg="blackAlpha.800" backdropFilter="blur(10px)" />
+          <Dialog.Positioner>
+            <Dialog.Content
+              bg="#1a1a2e"
+              borderWidth="1px"
+              borderColor="whiteAlpha.100"
+              borderRadius="2xl"
+              shadow="0 25px 50px rgba(0, 0, 0, 0.5)"
+              maxW="md"
+              mx="4"
+            >
+              <Dialog.Header pt="6" pb="2" px={{ base: "4", md: "6" }}>
+                <Dialog.Title color="white" fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
+                  Enter Game PIN
+                </Dialog.Title>
+                <Dialog.Description color="whiteAlpha.500" fontSize="sm" mt="1">
+                  This session is protected. Enter PIN to continue.
+                </Dialog.Description>
+              </Dialog.Header>
+
+              <Dialog.Body px={{ base: "4", md: "6" }} pb={{ base: '2', md: '4' }}>
+                <Field.Root>
+                  <Field.Label color="whiteAlpha.700" fontSize="sm" fontWeight="medium">
+                    PIN Code
+                  </Field.Label>
+                  <Input
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="one-time-code"
+                    value={enteredPin}
+                    onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    placeholder="Enter PIN"
+                    bg="rgba(255, 255, 255, 0.03)"
+                    borderColor="whiteAlpha.100"
+                    borderRadius="xl"
+                    color="white"
+                    h={{ base: '14', md: '12' }}
+                    px="4"
+                    fontSize={{ base: 'lg', md: 'md' }}
+                    letterSpacing="0.12em"
+                    _placeholder={{ color: 'whiteAlpha.300' }}
+                    _hover={{ borderColor: 'whiteAlpha.200' }}
+                    _focus={{ borderColor: 'purple.500' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handlePinSubmit()
+                      }
+                    }}
+                  />
+                </Field.Root>
+              </Dialog.Body>
+
+              <Dialog.Footer pb={{ base: 'max(1rem, env(safe-area-inset-bottom))', md: '6' }} px={{ base: "4", md: "6" }}>
+                <Flex direction={{ base: 'column-reverse', md: 'row' }} gap="3" w="full">
+                  <Button
+                    flex="1"
+                    h={{ base: '12', md: '12' }}
+                    variant="outline"
+                    colorPalette="gray"
+                    borderColor="whiteAlpha.200"
+                    color="whiteAlpha.700"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    onClick={() => setIsPinDialogOpen(false)}
+                    _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    flex="1"
+                    h={{ base: '12', md: '12' }}
+                    bg="linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)"
+                    color="white"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    onClick={handlePinSubmit}
+                    _hover={{
+                      bg: 'linear-gradient(135deg, #9333ea 0%, #6d28d9 100%)',
+                      transform: 'translateY(-1px)',
+                    }}
+                    transition="all 0.2s"
+                  >
+                    Unlock
                   </Button>
                 </Flex>
               </Dialog.Footer>
