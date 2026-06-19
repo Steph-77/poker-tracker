@@ -605,25 +605,10 @@ export default function GamesList() {
               </Dialog.Body>
 
               <Dialog.Footer pb={{ base: 'max(1rem, env(safe-area-inset-bottom))', md: '6' }} px={{ base: "4", md: "6" }}>
-                <Flex direction={{ base: 'column-reverse', md: 'row' }} gap="3" w="full">
+                <Flex direction="row" gap="2" w="full">
                   <Button
                     flex="1"
-                    h={{ base: '12', md: '12' }}
-                    variant="outline"
-                    colorPalette="gray"
-                    borderColor="whiteAlpha.200"
-                    color="whiteAlpha.700"
-                    fontSize="md"
-                    fontWeight="semibold"
-                    borderRadius="xl"
-                    onClick={() => setIsPinDialogOpen(false)}
-                    _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    flex="1"
-                    h={{ base: '12', md: '12' }}
+                    minH="12"
                     bg="linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)"
                     color="white"
                     fontSize="md"
@@ -637,6 +622,21 @@ export default function GamesList() {
                     transition="all 0.2s"
                   >
                     Unlock
+                  </Button>
+                  <Button
+                    flex="1"
+                    minH="12"
+                    variant="outline"
+                    colorPalette="gray"
+                    borderColor="whiteAlpha.200"
+                    color="whiteAlpha.700"
+                    fontSize="md"
+                    fontWeight="semibold"
+                    borderRadius="xl"
+                    onClick={() => setIsPinDialogOpen(false)}
+                    _hover={{ borderColor: 'whiteAlpha.300', color: 'white', bg: 'whiteAlpha.100' }}
+                  >
+                    Cancel
                   </Button>
                 </Flex>
               </Dialog.Footer>
